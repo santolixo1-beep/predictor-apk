@@ -22,12 +22,13 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
+          zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev \
+          ccache libtool-bin
 
     - name: Instalar pip, cython y buildozer
       run: |
-        pip install --upgrade pip setuptools wheel
-        pip install cython==0.29.36 buildozer==1.5.0
+        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install "cython<3.0" buildozer==1.5.0
 
     - name: Cache de Buildozer
       uses: actions/cache@v4
@@ -49,9 +50,19 @@ jobs:
 
     - name: Compilar APK con Buildozer
       run: |
-        yes | buildozer -v android debug
+        export PIP_USER=false
+        export PYTHONNOUSERSITE=1
+        yes | buildozer -v android debug 2>&1 | tee build_log.txt
+      continue-on-error: false
+
+    - name: Mostrar las últimas 200 líneas del log si falla
+      if: failure()
+      run: |
+        echo "===== ÚLTIMAS 200 LÍNEAS DEL LOG ====="
+        tail -n 200 build_log.txt
 
     - name: Subir APK como artefacto
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: predictor-apk
